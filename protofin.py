@@ -1,17 +1,21 @@
 import pandas as pd
 import streamlit as st
 
-# 초기 데이터 불러오기
-file_path = 'db1.xlsx'  # 실제 파일 경로로 수정
+# DB1(장애유형,장애정도별 능력치 설정) 연동
+db_path = 'db1.sqlite'
+def load_db1():
+    conn = sqlite3.connect(db_path)
+    query = 'SELECT * FROM abilities'
+    df = pd.read_sql(query, conn)
+    conn.close()
+    return df
+db1 = load_db1()
 
-# Streamlit 세션 상태로 DB 관리
-if 'db1' not in st.session_state:
-    st.session_state['db1'] = load_data(file_path)
-
+# DB2(회사가 등록한 일자리 저장) 연동
 if 'db2' not in st.session_state:
     st.session_state['db2'] = pd.DataFrame(columns=['회사명', '업무이름', '요구능력'])
-
-db1 = st.session_state['db1']
+if 'response' not in st.session_state:
+    st.session_state['response'] = ''
 db2 = st.session_state['db2']
 
 # 회사 정보 등록 함수
@@ -33,9 +37,13 @@ def match_job(name, disability_type, disability_degree):
     matching_results.sort(key=lambda x: x[2], reverse=True)
     return matching_results
 
-# Streamlit UI 구현
-st.title('장애인 일자리 매칭 시스템')
+# 화면 초기화 함수
+def reset_page():
+    for key in st.session_state.keys():
+        del st.session_state[key]
 
+# UI
+st.title('장애인 일자리 매칭 시스템')
 user_type = st.selectbox('사용자 유형을 선택하세요', ['회사', '지원자'])
 
 if user_type == '회사':
@@ -54,11 +62,15 @@ elif user_type == '지원자':
         for company, job_name, score in results:
             st.write(f'회사: {company}, 업무: {job_name}, 적합도 점수: {score}')
 
-# 유료 서비스 확인
-if st.button('추가 질문'):
+# 유료 서비스 질문
+if st.button('유료서비스'):
+    st.session_state['response'] = ''
+
+if st.session_state['response'] == '':
     if user_type == '회사':
-        st.radio('유료 직무개발 서비스 이용하시겠습니까?', ['예', '아니오'])
+        st.session_state['response'] = st.radio('유료 직무개발 서비스 이용하시겠습니까?', ['예', '아니오'])
     elif user_type == '지원자':
-        st.radio('유료 취업확인 서비스 이용하시겠습니까?', ['예', '아니오'])
-    if st.button('홈으로 돌아가기'):
-        st.experimental_rerun()
+        st.session_state['response'] = st.radio('유료 취업확인 서비스 이용하시겠습니까?', ['예', '아니오'])
+
+if st.session_state['response'] != '':
+    st.button('확인')
