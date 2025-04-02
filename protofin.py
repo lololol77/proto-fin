@@ -1,22 +1,28 @@
-import sqlite3
+# 장애 유형과 직무 능력 매칭 프로그램
+
 import pandas as pd
 import streamlit as st
+import sqlite3
 
-# DB1(장애유형,장애정도별 능력치 설정) 연동
+# SQLite 데이터베이스 경로
 db_path = 'db1.sqlite'
+
+# DB1 초기화 (SQLite 사용)
 def load_db1():
     conn = sqlite3.connect(db_path)
     query = 'SELECT * FROM abilities'
     df = pd.read_sql(query, conn)
     conn.close()
     return df
+
 db1 = load_db1()
 
-# DB2(회사가 등록한 일자리 저장) 연동
+# Streamlit 세션 상태로 DB 관리
 if 'db2' not in st.session_state:
     st.session_state['db2'] = pd.DataFrame(columns=['회사명', '업무이름', '요구능력'])
 if 'response' not in st.session_state:
     st.session_state['response'] = ''
+
 db2 = st.session_state['db2']
 
 # 회사 정보 등록 함수
@@ -38,13 +44,17 @@ def match_job(name, disability_type, disability_degree):
     matching_results.sort(key=lambda x: x[2], reverse=True)
     return matching_results
 
-# 화면 초기화 함수
-def reset_page():
-    for key in st.session_state.keys():
-        del st.session_state[key]
+# 기업에게 적합한 장애유형 추천 함수
+def recommend_disability(required_abilities):
+    recommendations = []
+    for ability in required_abilities:
+        best_fit = db1[db1['능력'] == ability].sort_values(by='점수', ascending=False).iloc[0]
+        recommendations.append((ability, best_fit['장애유형'], best_fit['정도']))
+    return recommendations
 
-# UI
-st.title('장애인 일자리 매칭 시스템')
+# Streamlit UI 구현
+st.title('ABLEMATCH"')
+
 user_type = st.selectbox('사용자 유형을 선택하세요', ['회사', '지원자'])
 
 if user_type == '회사':
@@ -53,6 +63,10 @@ if user_type == '회사':
     abilities = st.multiselect('요구 능력 선택', db1['능력'].unique())
     if st.button('일자리 등록'):
         register_job(company, job_name, abilities)
+        recommendations = recommend_disability(abilities)
+        st.write("가장 적합한 장애유형 추천:")
+        for ability, disability_type, level in recommendations:
+            st.write(f'능력: {ability}, 추천 장애유형: {disability_type}, 장애 정도: {level}')
 
 elif user_type == '지원자':
     name = st.text_input('이름')
@@ -63,7 +77,7 @@ elif user_type == '지원자':
         for company, job_name, score in results:
             st.write(f'회사: {company}, 업무: {job_name}, 적합도 점수: {score}')
 
-# 유료 서비스 질문
+# 유료 서비스 확인
 if st.button('유료서비스'):
     st.session_state['response'] = ''
 
