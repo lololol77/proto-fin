@@ -4,6 +4,9 @@ import pandas as pd
 import streamlit as st
 import sqlite3
 
+streamlit run your_script.py --server.fileWatcherType none
+
+
 # SQLite 데이터베이스 경로
 db_path = 'db1.sqlite'
 
